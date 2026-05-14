@@ -15,4 +15,8 @@ object Constants {
     // Image upload settings
     const val MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
     const val IMAGE_QUALITY = 80
+    
+    // Alert settings
+    const val ALERT_CHECK_INTERVAL_MINUTES = 15L
+    const val ALERT_THRESHOLD_DISTANCE = 1000f // meters
 }
