@@ -2,9 +2,7 @@ package com.pablocode.roadpotholeapp.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.pablocode.roadpotholeapp.domain.model.Notification
-import com.pablocode.roadpotholeapp.domain.model.Pothole
 import com.pablocode.roadpotholeapp.domain.model.Result
-import com.pablocode.roadpotholeapp.domain.model.UserLocation
 import com.pablocode.roadpotholeapp.domain.repository.NotificationRepository
 import com.pablocode.roadpotholeapp.utils.Constants
 import kotlinx.coroutines.flow.Flow
@@ -40,7 +38,6 @@ class NotificationRepositoryImpl @Inject constructor(
             val docRef = firestore.collection(Constants.FIRESTORE_NOTIFICATIONS_COLLECTION)
                 .add(notification)
                 .await()
-
             Result.Success(docRef.id)
         } catch (e: Exception) {
             Result.Error(e)
@@ -53,7 +50,6 @@ class NotificationRepositoryImpl @Inject constructor(
                 .document(notificationId)
                 .update("isRead", true)
                 .await()
-
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -66,7 +62,6 @@ class NotificationRepositoryImpl @Inject constructor(
                 .document(notificationId)
                 .delete()
                 .await()
-
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -79,46 +74,46 @@ class NotificationRepositoryImpl @Inject constructor(
                 .document(userId)
                 .update("fcmToken", token)
                 .await()
-
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
         }
     }
 
-    override suspend fun sendNearbyAlert(
-        pothole: Pothole,
-        userLocation: UserLocation
-    ): Result<Unit> {
+    override suspend fun getNearbyPotholes(
+        userId: String,
+        latitude: Double,
+        longitude: Double
+    ): Result<List<Notification>> {
         return try {
-            val distance = calculateDistance(
-                userLocation.latitude,
-                userLocation.longitude,
-                pothole.latitude,
-                pothole.longitude
-            )
+            val snapshot = firestore.collection(Constants.FIRESTORE_POTHOLES_COLLECTION)
+                .get()
+                .await()
 
-            if (distance <= Constants.DEFAULT_ALERT_RADIUS) {
-                val notification = Notification(
-                    title = "⚠️ Pothole Alert",
-                    message = "${pothole.severity} severity pothole detected ${distance.toInt()}m away",
-                    potholeId = pothole.potholeId,
-                    potholeLatitude = pothole.latitude,
-                    potholeLongitude = pothole.longitude,
-                    distance = distance,
-                    severity = pothole.severity.name,
-                    timestamp = System.currentTimeMillis()
-                )
-
-                // Save to Firestore
-                firestore.collection(Constants.FIRESTORE_NOTIFICATIONS_COLLECTION)
-                    .add(notification)
-                    .await()
-
-                Result.Success(Unit)
-            } else {
-                Result.Success(Unit)
+            val notifications = snapshot.documents.mapNotNull { doc ->
+                val pothole = doc.toObject(com.pablocode.roadpotholeapp.domain.model.Pothole::class.java)
+                if (pothole != null) {
+                    val distance = calculateDistance(
+                        latitude, longitude,
+                        pothole.latitude, pothole.longitude
+                    )
+                    if (distance <= Constants.DEFAULT_ALERT_RADIUS) {
+                        Notification(
+                            potholeId = doc.id,
+                            userId = userId,
+                            title = "Pothole Alert - ${pothole.severity}",
+                            message = pothole.description,
+                            potholeLatitude = pothole.latitude,
+                            potholeLongitude = pothole.longitude,
+                            distance = distance,
+                            severity = pothole.severity.name,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    } else null
+                } else null
             }
+
+            Result.Success(notifications)
         } catch (e: Exception) {
             Result.Error(e)
         }

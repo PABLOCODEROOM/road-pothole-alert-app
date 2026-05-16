@@ -29,7 +29,7 @@ class NotificationViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    fun loadUserNotifications(userId: String) {
+    fun loadNotifications(userId: String) {
         viewModelScope.launch {
             _isLoading.value = true
             notificationRepository.getUserNotifications(userId)
@@ -51,14 +51,12 @@ class NotificationViewModel @Inject constructor(
             val result = notificationRepository.markAsRead(notificationId)
             when (result) {
                 is Result.Success -> {
-                    _notifications.value = _notifications.value.map { notification ->
-                        if (notification.notificationId == notificationId) {
-                            notification.copy(isRead = true)
-                        } else {
-                            notification
-                        }
+                    _notifications.value = _notifications.value.map { notif ->
+                        if (notif.notificationId == notificationId) {
+                            notif.copy(isRead = true)
+                        } else notif
                     }
-                    _unreadCount.value = _notifications.value.count { !it.isRead }
+                    _unreadCount.value = maxOf(0, _unreadCount.value - 1)
                 }
                 is Result.Error -> {
                     _error.value = result.exception.message
@@ -73,8 +71,11 @@ class NotificationViewModel @Inject constructor(
             val result = notificationRepository.deleteNotification(notificationId)
             when (result) {
                 is Result.Success -> {
+                    val notif = _notifications.value.find { it.notificationId == notificationId }
                     _notifications.value = _notifications.value.filter { it.notificationId != notificationId }
-                    _unreadCount.value = _notifications.value.count { !it.isRead }
+                    if (notif != null && !notif.isRead) {
+                        _unreadCount.value = maxOf(0, _unreadCount.value - 1)
+                    }
                 }
                 is Result.Error -> {
                     _error.value = result.exception.message

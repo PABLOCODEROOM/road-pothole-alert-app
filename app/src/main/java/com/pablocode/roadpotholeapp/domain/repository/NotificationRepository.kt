@@ -10,5 +10,5 @@ interface NotificationRepository {
     suspend fun markAsRead(notificationId: String): Result<Unit>
     suspend fun deleteNotification(notificationId: String): Result<Unit>
     suspend fun saveFCMToken(userId: String, token: String): Result<Unit>
-    suspend fun sendNearbyAlert(pothole: com.pablocode.roadpotholeapp.domain.model.Pothole, userLocation: com.pablocode.roadpotholeapp.domain.model.UserLocation): Result<Unit>
+    suspend fun getNearbyPotholes(userId: String, latitude: Double, longitude: Double): Result<List<Notification>>
 }
